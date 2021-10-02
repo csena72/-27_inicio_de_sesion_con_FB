@@ -30,13 +30,35 @@ const User = require('./dao/models/usuarios');
 passport.use(new FacebookStrategy({
   clientID: process.env.FACEBOOK_APP_ID,
   clientSecret: process.env.FACEBOOK_APP_SECRET,
-  callbackURL: "http://localhost:9000/auth/facebook/callback"
+  callbackURL: '/auth/facebook/callback',
+  profileFields: ['id', 'displayName', 'photos', 'emails']  
 },
-function(accessToken, refreshToken, profile, cb) {
-  User.findOrCreate({ facebookId: profile.id }, function (err, user) {
-    return cb(err, user);
-  });
-}
+  function (accessToken, refreshToken, profile, done) {
+
+    User.findOne({  
+      'facebookId': profile.id
+    }, (err, user) => {
+      if (err) {
+        return done(err);
+      }
+      
+      if (!user) {
+        user = new User({
+          facebookId: profile.id,
+          name: profile.displayName,
+          email: profile.emails[0].value,
+          picture: profile.photos[0].value,
+          provider: 'facebook'
+        });
+        user.save((err) => {
+          if (err) console.log(err);
+          return done(err, user);
+        });
+      } else {        
+        return done(err, user);
+      }
+    });
+  }
 ));
 
 app.get('/auth/facebook', passport.authenticate('facebook'));
@@ -44,10 +66,8 @@ app.get('/auth/facebook', passport.authenticate('facebook'));
 app.get('/auth/facebook/callback', 
   passport.authenticate('facebook',{
     successRedirect: '/home',
-    failureRedirect: '/login'
+    failureRedirect: '/faillogin'
   }));
-
-
 
 passport.use('login', new LocalStrategy({
     passReqToCallback : true

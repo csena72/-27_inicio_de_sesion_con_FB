@@ -24,7 +24,30 @@ const MongoStore = require('connect-mongo');
 const passport = require('passport');
 const bCrypt = require('bcrypt');
 const LocalStrategy = require('passport-local').Strategy;
+const FacebookStrategy = require('passport-facebook').Strategy;
 const User = require('./dao/models/usuarios');
+
+passport.use(new FacebookStrategy({
+  clientID: process.env.FACEBOOK_APP_ID,
+  clientSecret: process.env.FACEBOOK_APP_SECRET,
+  callbackURL: "http://localhost:9000/auth/facebook/callback"
+},
+function(accessToken, refreshToken, profile, cb) {
+  User.findOrCreate({ facebookId: profile.id }, function (err, user) {
+    return cb(err, user);
+  });
+}
+));
+
+app.get('/auth/facebook', passport.authenticate('facebook'));
+
+app.get('/auth/facebook/callback', 
+  passport.authenticate('facebook',{
+    successRedirect: '/home',
+    failureRedirect: '/login'
+  }));
+
+
 
 passport.use('login', new LocalStrategy({
     passReqToCallback : true
